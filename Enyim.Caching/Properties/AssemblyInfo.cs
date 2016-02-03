@@ -13,6 +13,10 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 [assembly: Guid("a8cd3f39-7731-4ee8-a7ce-444d540d4a4d")]
+[assembly: AssemblyTitle("Enyim.Caching")]
+[assembly: AssemblyDescription("Enyim.Caching")]
+[assembly: AssemblyVersion("3.0.0.2")]
+[assembly: AssemblyFileVersion("3.0.0.2")]
 
 #region [ License information          ]
 /* ************************************************************
@@ -33,3 +37,4 @@ using System.Runtime.InteropServices;
  *    
  * ************************************************************/
 #endregion
+

@@ -312,5 +312,5 @@
   <PropertyGroup>
     <GitTagMatch>emc*</GitTagMatch>
   </PropertyGroup>
-  <Import Project="..\build\VersionInfo.targets" />
+  <!-- <Import Project="..\build\VersionInfo.targets" /> -->
 </Project>
