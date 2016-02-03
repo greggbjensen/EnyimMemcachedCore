@@ -1,6 +1,7 @@
 ﻿using System;
 using Enyim.Caching.Memcached;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Enyim.Caching
 {
@@ -24,10 +25,11 @@ namespace Enyim.Caching
 		CasResult<bool> Prepend(string key, ulong cas, ArraySegment<byte> data);
 
 		bool Store(StoreMode mode, string key, object value);
-		bool Store(StoreMode mode, string key, object value, DateTime expiresAt);
-		bool Store(StoreMode mode, string key, object value, TimeSpan validFor);
+		bool Store(StoreMode mode, string key, object value, DateTime expiresAt);        
+        bool Store(StoreMode mode, string key, object value, TimeSpan validFor);
+        Task<bool> StoreAsync(StoreMode mode, string key, object value, TimeSpan validFor);
 
-		CasResult<bool> Cas(StoreMode mode, string key, object value);
+        CasResult<bool> Cas(StoreMode mode, string key, object value);
 		CasResult<bool> Cas(StoreMode mode, string key, object value, ulong cas);
 		CasResult<bool> Cas(StoreMode mode, string key, object value, DateTime expiresAt, ulong cas);
 		CasResult<bool> Cas(StoreMode mode, string key, object value, TimeSpan validFor, ulong cas);

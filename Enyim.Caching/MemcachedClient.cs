@@ -290,6 +290,11 @@ namespace Enyim.Caching
             return this.PerformStore(mode, key, value, MemcachedClient.GetExpiration(validFor, null), ref tmp, out status).Success;
         }
 
+        public async Task<bool> StoreAsync(StoreMode mode, string key, object value, TimeSpan validFor)
+        {
+            return (await this.PerformStoreAsync(mode, key, value, MemcachedClient.GetExpiration(validFor, null))).Success;
+        }
+
         /// <summary>
         /// Inserts an item into the cache with a cache key to reference its location.
         /// </summary>
@@ -411,6 +416,59 @@ namespace Enyim.Caching
 
                 var command = this.pool.OperationFactory.Store(mode, hashedKey, item, expires, cas);
                 var commandResult = node.Execute(command);
+
+                result.Cas = cas = command.CasValue;
+                result.StatusCode = statusCode = command.StatusCode;
+
+                if (commandResult.Success)
+                {
+                    if (this.performanceMonitor != null) this.performanceMonitor.Store(mode, 1, true);
+                    result.Pass();
+                    return result;
+                }
+
+                commandResult.Combine(result);
+                return result;
+            }
+
+            if (this.performanceMonitor != null) this.performanceMonitor.Store(mode, 1, false);
+
+            result.Fail("Unable to locate node");
+            return result;
+        }
+
+        protected virtual async Task<IStoreOperationResult> PerformStoreAsync(StoreMode mode, string key, object value, uint expires)
+        {
+            var hashedKey = this.keyTransformer.Transform(key);
+            var node = this.pool.Locate(hashedKey);
+            var result = StoreOperationResultFactory.Create();
+
+            int statusCode = -1;
+            ulong cas = 0;
+
+            if (value == null)
+            {
+                result.Fail("value is null");
+                return result;
+            }
+
+            if (node != null)
+            {
+                CacheItem item;
+
+                try { item = this.transcoder.Serialize(value); }
+                catch (Exception e)
+                {
+                    log.Error(e);
+
+                    if (this.performanceMonitor != null) this.performanceMonitor.Store(mode, 1, false);
+
+                    result.Fail("PerformStore failed", e);
+                    return result;
+                }
+
+                var command = this.pool.OperationFactory.Store(mode, hashedKey, item, expires, cas);
+                var commandResult = await node.ExecuteAsync(command);
 
                 result.Cas = cas = command.CasValue;
                 result.StatusCode = statusCode = command.StatusCode;

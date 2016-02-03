@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Enyim.Caching.Memcached;
 using Enyim.Caching.Memcached.Results;
 using Enyim.Caching.Memcached.Results.Extensions;
@@ -43,17 +44,17 @@ namespace Enyim.Caching
 			int status;
 
 			return this.PerformStore(mode, key, value, MemcachedClient.GetExpiration(validFor, null), ref tmp, out status);
-		}
+		}       
 
-		/// <summary>
-		/// Inserts an item into the cache with a cache key to reference its location.
-		/// </summary>
-		/// <param name="mode">Defines how the item is stored in the cache.</param>
-		/// <param name="key">The key used to reference the item.</param>
-		/// <param name="value">The object to be inserted into the cache.</param>
-		/// <param name="expiresAt">The time when the item is invalidated in the cache.</param>
-		/// <returns>true if the item was successfully stored in the cache; false otherwise.</returns>
-		public IStoreOperationResult ExecuteStore(StoreMode mode, string key, object value, DateTime expiresAt)
+        /// <summary>
+        /// Inserts an item into the cache with a cache key to reference its location.
+        /// </summary>
+        /// <param name="mode">Defines how the item is stored in the cache.</param>
+        /// <param name="key">The key used to reference the item.</param>
+        /// <param name="value">The object to be inserted into the cache.</param>
+        /// <param name="expiresAt">The time when the item is invalidated in the cache.</param>
+        /// <returns>true if the item was successfully stored in the cache; false otherwise.</returns>
+        public IStoreOperationResult ExecuteStore(StoreMode mode, string key, object value, DateTime expiresAt)
 		{
 			ulong tmp = 0;
 			int status;
