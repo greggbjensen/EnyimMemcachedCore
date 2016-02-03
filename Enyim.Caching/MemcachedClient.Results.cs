@@ -470,8 +470,36 @@ namespace Enyim.Caching
 			return result;
 		}
 
-		#endregion
-	}
+        public async Task<IRemoveOperationResult> ExecuteRemoveAsync(string key)
+        {
+            var hashedKey = this.keyTransformer.Transform(key);
+            var node = this.pool.Locate(hashedKey);
+            var result = RemoveOperationResultFactory.Create();
+
+            if (node != null)
+            {
+                var command = this.pool.OperationFactory.Delete(hashedKey, 0);
+                var commandResult = await node.ExecuteAsync(command);
+
+                if (commandResult.Success)
+                {
+                    result.Pass();
+                }
+                else
+                {
+                    result.InnerResult = commandResult;
+                    result.Fail("Failed to remove item, see InnerResult or StatusCode for details");
+                }
+
+                return result;
+            }
+
+            result.Fail("Unable to locate node");
+            return result;
+        }
+
+        #endregion
+    }
 }
 
 #region [ License information          ]

@@ -887,6 +887,11 @@ namespace Enyim.Caching
             return ExecuteRemove(key).Success;
         }
 
+        public async Task<bool> RemoveAsync(string key)
+        {
+            return (await ExecuteRemoveAsync(key)).Success;
+        }
+
         /// <summary>
         /// Retrieves multiple items from the cache.
         /// </summary>
