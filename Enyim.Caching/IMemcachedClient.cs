@@ -2,6 +2,7 @@
 using Enyim.Caching.Memcached;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Enyim.Caching.Memcached.Results;
 
 namespace Enyim.Caching
 {
@@ -9,7 +10,8 @@ namespace Enyim.Caching
 	{
 		object Get(string key);
 		T Get<T>(string key);
-		IDictionary<string, object> Get(IEnumerable<string> keys);
+        Task<IGetOperationResult<T>> GetAsync<T>(string key);
+        IDictionary<string, object> Get(IEnumerable<string> keys);
 
 		bool TryGet(string key, out object value);
 		bool TryGetWithCas(string key, out CasResult<object> value);
