@@ -9,21 +9,21 @@ using Microsoft.Extensions.Options;
 
 namespace Enyim.Caching.Configuration
 {
-	/// <summary>
-	/// Configuration class
-	/// </summary>
-	public class MemcachedClientConfiguration : IMemcachedClientConfiguration
-	{
-		// these are lazy initialized in the getters
-		private Type nodeLocator;
-		private ITranscoder transcoder;
-		private IMemcachedKeyTransformer keyTransformer;
+    /// <summary>
+    /// Configuration class
+    /// </summary>
+    public class MemcachedClientConfiguration : IMemcachedClientConfiguration
+    {
+        // these are lazy initialized in the getters
+        private Type nodeLocator;
+        private ITranscoder transcoder;
+        private IMemcachedKeyTransformer keyTransformer;
         private ILogger<MemcachedClient> _logger;
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="T:MemcachedClientConfiguration"/> class.
-		/// </summary>
-		public MemcachedClientConfiguration(
+        /// <summary>
+        /// Initializes a new instance of the <see cref="T:MemcachedClientConfiguration"/> class.
+        /// </summary>
+        public MemcachedClientConfiguration(
             ILogger<MemcachedClient> logger,
             IOptions<MemcachedClientOptions> optionsAccessor)
         {
@@ -38,22 +38,63 @@ namespace Enyim.Caching.Configuration
             Servers = new List<EndPoint>();
             foreach (var server in options.Servers)
             {
-                var methodInfo = $"Call ResolveToEndPoint(\"{server.Addess}\", {server.Port})";
-                try
+                IPAddress address;
+                if (IPAddress.TryParse(server.Address, out address))
                 {
-                    _logger.LogDebug(methodInfo);
-                    var endpoint = ConfigurationHelper.ResolveToEndPoint(server.Addess, server.Port);
-                    _logger.LogDebug($"Result of ResolveToEndPoint(): {endpoint}");
-                    Servers.Add(endpoint);
+                    Servers.Add(new IPEndPoint(address, server.Port));
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.LogError(new EventId(), ex, methodInfo);
-                }
+                    Servers.Add(new DnsEndPoint(server.Address, server.Port));
+                }                
             }
             SocketPool = options.SocketPool;
             Protocol = options.Protocol;
-            //this.Authentication = new AuthenticationConfiguration();
+
+            if (options.Authentication != null && !string.IsNullOrEmpty(options.Authentication.Type))
+            {
+                try
+                {
+                    var authenticationType = Type.GetType(options.Authentication.Type);
+                    if (authenticationType != null)
+                    {
+                        _logger.LogDebug($"Authentication type is {authenticationType}.");
+
+                        Authentication = new AuthenticationConfiguration();
+                        Authentication.Type = authenticationType;
+                        foreach (var parameter in options.Authentication.Parameters)
+                        {
+                            Authentication.Parameters[parameter.Key] = parameter.Value;
+                            _logger.LogDebug($"Authentication {parameter.Key} is '{parameter.Value}'.");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogError($"Unable to load authentication type {options.Authentication.Type}.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(new EventId(), ex, $"Unable to load authentication type {options.Authentication.Type}.");
+                }
+            }
+
+            if(!string.IsNullOrEmpty(options.KeyTransformer))
+            {
+                try
+                {
+                    var keyTransformerType = Type.GetType(options.KeyTransformer);
+                    if (keyTransformerType != null)
+                    {
+                        KeyTransformer = Activator.CreateInstance(keyTransformerType) as IMemcachedKeyTransformer;
+                        _logger.LogDebug($"Use '{options.KeyTransformer}' KeyTransformer");
+                    }
+                }
+                catch(Exception ex)
+                {
+                    _logger.LogError(new EventId(), ex, $"Unable to load '{options.KeyTransformer}' KeyTransformer");
+                }                
+            }
         }   
 
 		/// <summary>

@@ -37,7 +37,7 @@ namespace Enyim.Caching
         public IMutateOperationResultFactory MutateOperationResultFactory { get; set; }
         public IConcatOperationResultFactory ConcatOperationResultFactory { get; set; }
         public IRemoveOperationResultFactory RemoveOperationResultFactory { get; set; }
-  
+
         protected IServerPool Pool { get { return this.pool; } }
         protected IMemcachedKeyTransformer KeyTransformer { get { return this.keyTransformer; } }
         protected ITranscoder Transcoder { get { return this.transcoder; } }
@@ -48,10 +48,10 @@ namespace Enyim.Caching
         {
             _logger = logger;
 
-            if(configuration == null)
+            if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
-            }            
+            }
 
             this.keyTransformer = configuration.CreateKeyTransformer() ?? new DefaultKeyTransformer();
             this.transcoder = configuration.CreateTranscoder() ?? new DefaultTranscoder();
@@ -64,7 +64,7 @@ namespace Enyim.Caching
             MutateOperationResultFactory = new DefaultMutateOperationResultFactory();
             ConcatOperationResultFactory = new DefaultConcatOperationResultFactory();
             RemoveOperationResultFactory = new DefaultRemoveOperationResultFactory();
-        }      
+        }
 
         [Obsolete]
         private MemcachedClient(IServerPool pool, IMemcachedKeyTransformer keyTransformer, ITranscoder transcoder)
@@ -119,40 +119,98 @@ namespace Enyim.Caching
         [Obsolete]
         public T Get<T>(string key)
         {
-            object tmp;
+            var hashedKey = this.keyTransformer.Transform(key);
+            var node = this.pool.Locate(key);
 
-            return TryGet(key, out tmp) ? (T)tmp : default(T);
+            if (node != null)
+            {
+                try
+                {
+                    var command = this.pool.OperationFactory.Get(key);
+                    var commandResult = node.Execute(command);
+
+                    if (commandResult.Success)
+                    {
+                        if (typeof(T).GetTypeCode() == TypeCode.Object && typeof(T) != typeof(Byte[]))
+                        {
+                            return this.transcoder.Deserialize<T>(command.Result);
+                        }
+                        else
+                        {
+                            var tempResult = this.transcoder.Deserialize(command.Result);
+                            if (tempResult != null)
+                            {
+                                if (typeof(T) == typeof(Guid))
+                                {
+                                    return (T)(object)new Guid((string)tempResult);
+                                }
+                                else
+                                {
+                                    return (T)tempResult;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(0, ex, $"{nameof(GetAsync)}(\"{key}\")");
+                    throw ex;
+                }
+            }
+            else
+            {
+                _logger.LogError($"Unable to locate memcached node");
+            }
+
+            return default(T);
         }
 
         public async Task<IGetOperationResult<T>> GetAsync<T>(string key)
         {
             var result = new DefaultGetOperationResultFactory<T>().Create();
 
-            //var hashedKey = this.keyTransformer.Transform(key);
+            var hashedKey = this.keyTransformer.Transform(key);
             var node = this.pool.Locate(key);
 
             if (node != null)
             {
-                var command = this.pool.OperationFactory.Get(key);
-                var commandResult = await node.ExecuteAsync(command);
-
-                if (commandResult.Success)
+                try
                 {
-                    if (typeof(T).GetTypeCode() == TypeCode.Object)
+                    var command = this.pool.OperationFactory.Get(key);
+                    var commandResult = await node.ExecuteAsync(command);
+
+                    if (commandResult.Success)
                     {
-                        result.Success = true;
-                        result.Value = this.transcoder.Deserialize<T>(command.Result);
-                        return result;
-                    }
-                    else {
-                        var tempResult = this.transcoder.Deserialize(command.Result);
-                        if (tempResult != null)
+                        if (typeof(T).GetTypeCode() == TypeCode.Object && typeof(T) != typeof(Byte[]))
                         {
                             result.Success = true;
-                            result.Value = (T)tempResult;
+                            result.Value = this.transcoder.Deserialize<T>(command.Result);
                             return result;
                         }
+                        else
+                        {
+                            var tempResult = this.transcoder.Deserialize(command.Result);
+                            if (tempResult != null)
+                            {
+                                result.Success = true;
+                                if (typeof(T) == typeof(Guid))
+                                {
+                                    result.Value = (T)(object)new Guid((string)tempResult);
+                                }
+                                else
+                                {
+                                    result.Value = (T)tempResult;
+                                }
+                                return result;
+                            }
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(0, ex, $"{nameof(GetAsync)}(\"{key}\")");
+                    throw ex;
                 }
             }
             else
@@ -163,6 +221,12 @@ namespace Enyim.Caching
             result.Success = false;
             result.Value = default(T);
             return result;
+        }
+
+        public async Task<T> GetValueAsync<T>(string key)
+        {
+            var result = await GetAsync<T>(key);
+            return result.Success ? result.Value : default(T);
         }
 
         /// <summary>
@@ -279,6 +343,11 @@ namespace Enyim.Caching
             return this.PerformStore(mode, key, value, MemcachedClient.GetExpiration(validFor, null), ref tmp, out status).Success;
         }
 
+        public async Task<bool> StoreAsync(StoreMode mode, string key, object value, DateTime expiresAt)
+        {
+            return (await this.PerformStoreAsync(mode, key, value, MemcachedClient.GetExpiration(null, expiresAt))).Success;
+        }
+
         public async Task<bool> StoreAsync(StoreMode mode, string key, object value, TimeSpan validFor)
         {
             return (await this.PerformStoreAsync(mode, key, value, MemcachedClient.GetExpiration(validFor, null))).Success;
@@ -376,12 +445,12 @@ namespace Enyim.Caching
 
         protected virtual IStoreOperationResult PerformStore(StoreMode mode, string key, object value, uint expires, ref ulong cas, out int statusCode)
         {
-            //var hashedKey = this.keyTransformer.Transform(key);
+            var hashedKey = this.keyTransformer.Transform(key);
             var node = this.pool.Locate(key);
-            var result = StoreOperationResultFactory.Create();           
+            var result = StoreOperationResultFactory.Create();
 
             statusCode = -1;
-            
+
 
             if (value == null)
             {
@@ -444,7 +513,7 @@ namespace Enyim.Caching
                 try { item = this.transcoder.Serialize(value); }
                 catch (Exception e)
                 {
-                    _logger.LogError("PerformStoreAsync", e);
+                    _logger.LogError(new EventId(), e, $"{nameof(PerformStoreAsync)} for '{key}' key");
 
                     result.Fail("PerformStore failed", e);
                     return result;
@@ -820,33 +889,25 @@ namespace Enyim.Caching
         public ServerStats Stats(string type)
         {
             var results = new Dictionary<EndPoint, Dictionary<string, string>>();
-            var handles = new List<WaitHandle>();
+            var tasks = new List<Task>();
 
             foreach (var node in this.pool.GetWorkingNodes())
             {
                 var cmd = this.pool.OperationFactory.Stats(type);
                 var action = new Func<IOperation, IOperationResult>(node.Execute);
-                var mre = new ManualResetEvent(false);
+                var endpoint = node.EndPoint;
 
-                handles.Add(mre);
-
-                action.BeginInvoke(cmd, iar =>
+                tasks.Add(Task.Run(() =>
                 {
-                    using (iar.AsyncWaitHandle)
-                    {
-                        action.EndInvoke(iar);
-
-                        lock (results)
-                            results[((IMemcachedNode)iar.AsyncState).EndPoint] = cmd.Result;
-
-                        mre.Set();
-                    }
-                }, node);
+                    action(cmd);
+                    lock (results)
+                        results[endpoint] = cmd.Result;
+                }));
             }
 
-            if (handles.Count > 0)
+            if (tasks.Count > 0)
             {
-                SafeWaitAllAndDispose(handles.ToArray());
+                Task.WaitAll(tasks.ToArray());
             }
 
             return new ServerStats(results);
@@ -897,7 +958,7 @@ namespace Enyim.Caching
             var byServer = GroupByServer(hashed.Keys);
 
             var retval = new Dictionary<string, T>(hashed.Count);
-            var handles = new List<WaitHandle>();
+            var tasks = new List<Task>();
 
             //execute each list of keys on their respective node
             foreach (var slice in byServer)
@@ -907,50 +968,42 @@ namespace Enyim.Caching
                 var nodeKeys = slice.Value;
                 var mget = this.pool.OperationFactory.MultiGet(nodeKeys);
 
-                // we'll use the delegate's BeginInvoke/EndInvoke to run the gets parallel
+                // run gets in parallel
                 var action = new Func<IOperation, IOperationResult>(node.Execute);
-                var mre = new ManualResetEvent(false);
-                handles.Add(mre);
 
                 //execute the mgets in parallel
-                action.BeginInvoke(mget, iar =>
+                tasks.Add(Task.Run(() =>
                 {
                     try
                     {
-                        using (iar.AsyncWaitHandle)
-                            if (action.EndInvoke(iar).Success)
+                        if (action(mget).Success)
+                        {
+                            // deserialize the items in the dictionary
+                            foreach (var kvp in mget.Result)
                             {
-                                // deserialize the items in the dictionary
-                                foreach (var kvp in mget.Result)
+                                string original;
+                                if (hashed.TryGetValue(kvp.Key, out original))
                                 {
-                                    string original;
-                                    if (hashed.TryGetValue(kvp.Key, out original))
-                                    {
-                                        var result = collector(mget, kvp);
+                                    var result = collector(mget, kvp);
 
-                                        // the lock will serialize the merge,
-                                        // but at least the commands were not waiting on each other
-                                        lock (retval) retval[original] = result;
-                                    }
+                                    // the lock will serialize the merge,
+                                    // but at least the commands were not waiting on each other
+                                    lock (retval) retval[original] = result;
                                 }
                             }
+                        }
                     }
                     catch (Exception e)
                     {
                         _logger.LogError("PerformMultiGet", e);
                     }
-                    finally
-                    {
-                        // indicate that we finished processing
-                        mre.Set();
-                    }
-                }, nodeKeys);
+                }));
             }
 
             // wait for all nodes to finish
-            if (handles.Count > 0)
+            if (tasks.Count > 0)
             {
-                SafeWaitAllAndDispose(handles.ToArray());
+                Task.WaitAll(tasks.ToArray());
             }
 
             return retval;
@@ -987,8 +1040,8 @@ namespace Enyim.Caching
                 //if (Thread.CurrentThread.GetApartmentState() == ApartmentState.MTA)
                 //    WaitHandle.WaitAll(waitHandles);
                 //else
-                    for (var i = 0; i < waitHandles.Length; i++)
-                        waitHandles[i].WaitOne();
+                for (var i = 0; i < waitHandles.Length; i++)
+                    waitHandles[i].WaitOne();
             }
             finally
             {
@@ -1003,25 +1056,25 @@ namespace Enyim.Caching
         protected static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1);
 
         protected static uint GetExpiration(
-            TimeSpan? validFor, 
-            DateTime? expiresAt = null, 
+            TimeSpan? validFor,
+            DateTime? expiresAt = null,
             DateTimeOffset? absoluteExpiration = null,
             TimeSpan? relativeToNow = null)
         {
             if (validFor != null && expiresAt != null)
                 throw new ArgumentException("You cannot specify both validFor and expiresAt.");
 
-            if(validFor == null && expiresAt == null && absoluteExpiration == null && relativeToNow == null)
+            if (validFor == null && expiresAt == null && absoluteExpiration == null && relativeToNow == null)
             {
                 return 0;
             }
 
-            if(absoluteExpiration != null)
+            if (absoluteExpiration != null)
             {
                 return (uint)absoluteExpiration.Value.ToUnixTimeSeconds();
             }
 
-            if(relativeToNow != null)
+            if (relativeToNow != null)
             {
                 return (uint)(DateTimeOffset.UtcNow + relativeToNow.Value).ToUnixTimeSeconds();
             }
@@ -1045,6 +1098,11 @@ namespace Enyim.Caching
             uint retval = (uint)(dt.ToUniversalTime() - UnixEpoch).TotalSeconds;
 
             return retval;
+        }
+
+        protected static string GetExpiratonKey(string key)
+        {
+            return key + "-" + nameof(DistributedCacheEntryOptions);
         }
 
         #endregion
@@ -1073,127 +1131,89 @@ namespace Enyim.Caching
             {
                 try { this.pool.Dispose(); }
                 finally { this.pool = null; }
-            }            
+            }
         }
 
         #region Implement IDistributedCache
 
         byte[] IDistributedCache.Get(string key)
         {
-            var node = this.pool.Locate(key);
-            if (node != null)
-            {
-                var command = this.pool.OperationFactory.Get(key);
-                var commandResult = node.Execute(command);
-                if (commandResult.Success)
-                {
-                    return command.Result.Data.ToArray();
-                }
-            }
-            else
-            {
-                _logger.LogError($"Unable to locate memcached node");
-            }
-            return null;
+            _logger.LogInformation($"{nameof(IDistributedCache.Get)}(\"{key}\")");
+
+            return Get<byte[]>(key);
         }
 
         async Task<byte[]> IDistributedCache.GetAsync(string key)
         {
-            var node = this.pool.Locate(key);
-            if (node != null)
-            {
-                var command = this.pool.OperationFactory.Get(key);
-                var commandResult = await node.ExecuteAsync(command);
-                if (commandResult.Success)
-                {
-                    return command.Result.Data.ToArray();
-                }
-            }
-            else
-            {
-                _logger.LogError($"Unable to locate memcached node");
-            }
-            return null;
+            _logger.LogInformation($"{nameof(IDistributedCache.GetAsync)}(\"{key}\")");
+
+            return await GetValueAsync<byte[]>(key);
         }
 
         void IDistributedCache.Set(string key, byte[] value, DistributedCacheEntryOptions options)
         {
-            var node = this.pool.Locate(key);
-            if (node != null)
-            {
-                var item = new CacheItem
-                {
-                    Data = new ArraySegment<byte>(value, 0, value.Length)
-                };
+            _logger.LogInformation($"{nameof(IDistributedCache.Set)}(\"{key}\")");
 
-                ulong cas = 0;
-                var expires = MemcachedClient.GetExpiration(options.SlidingExpiration, null, options.AbsoluteExpiration, options.AbsoluteExpirationRelativeToNow);
-                var command = this.pool.OperationFactory.Store(StoreMode.Set, key, item, expires, cas);
-                node.Execute(command);
-            }
-            else
+            ulong cas = 0;
+            var expires = MemcachedClient.GetExpiration(options.SlidingExpiration, null, options.AbsoluteExpiration, options.AbsoluteExpirationRelativeToNow);
+            PerformStore(StoreMode.Set, key, value, expires, cas);
+            if (expires > 0)
             {
-                _logger.LogError("Unable to locate node");
+                PerformStore(StoreMode.Set, GetExpiratonKey(key), expires, expires, cas);
             }
         }
 
         async Task IDistributedCache.SetAsync(string key, byte[] value, DistributedCacheEntryOptions options)
         {
-            var node = this.pool.Locate(key);
-            if (node != null)
-            {
-                var item = new CacheItem
-                {
-                    Data = new ArraySegment<byte>(value, 0, value.Length)
-                };
+            _logger.LogInformation($"{nameof(IDistributedCache.SetAsync)}(\"{key}\")");
 
-                ulong cas = 0;
-                var expires = MemcachedClient.GetExpiration(options.SlidingExpiration, null, options.AbsoluteExpiration, options.AbsoluteExpirationRelativeToNow);
-                var command = this.pool.OperationFactory.Store(StoreMode.Set, key, item, expires, cas);
-                await node.ExecuteAsync(command);
-            }
-            else
+            var expires = MemcachedClient.GetExpiration(options.SlidingExpiration, null, options.AbsoluteExpiration, options.AbsoluteExpirationRelativeToNow);
+            await PerformStoreAsync(StoreMode.Set, key, value, expires);
+            if (expires > 0)
             {
-                _logger.LogError("Unable to locate node");
+                await PerformStoreAsync(StoreMode.Set, GetExpiratonKey(key), expires, expires);
             }
         }
 
         void IDistributedCache.Refresh(string key)
         {
-            throw new NotImplementedException();
+            _logger.LogInformation($"{nameof(IDistributedCache.Refresh)}(\"{key}\")");
+
+            var value = Get(key);
+            if (value != null)
+            {
+                var expirationValue = Get(GetExpiratonKey(key));
+                if (expirationValue != null)
+                {
+                    ulong cas = 0;
+                    PerformStore(StoreMode.Replace, key, value, uint.Parse(expirationValue.ToString()), cas);
+                }
+            }
         }
 
-        Task IDistributedCache.RefreshAsync(string key)
+        async Task IDistributedCache.RefreshAsync(string key)
         {
-            throw new NotImplementedException();
+            _logger.LogInformation($"{nameof(IDistributedCache.RefreshAsync)}(\"{key}\")");
+
+            var result = await GetAsync<byte[]>(key);
+            if (result.Success)
+            {
+                var expirationResult = await GetAsync<uint>(GetExpiratonKey(key));
+                if (expirationResult.Success)
+                {
+                    await PerformStoreAsync(StoreMode.Replace, key, result.Value, expirationResult.Value);
+                }
+            }
         }
 
         void IDistributedCache.Remove(string key)
         {
-            var node = this.pool.Locate(key);
-            if (node != null)
-            {
-                var command = this.pool.OperationFactory.Delete(key, 0);
-                node.Execute(command);
-            }
-            else
-            {
-                _logger.LogError("Unable to locate node");
-            }
+            Remove(key);
         }
 
         async Task IDistributedCache.RemoveAsync(string key)
         {
-            var node = this.pool.Locate(key);
-            if (node != null)
-            {
-                var command = this.pool.OperationFactory.Delete(key, 0);
-                await node.ExecuteAsync(command);
-            }
-            else
-            {
-                _logger.LogError("Unable to locate node");
-            }
+            await RemoveAsync(key);
         }
 
         #endregion

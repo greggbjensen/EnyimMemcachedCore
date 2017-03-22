@@ -1,11 +1,21 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.26228.9
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Enyim.Caching", "Enyim.Caching\Enyim.Caching.xproj", "{0EC50FBB-03B7-4B76-9D72-AADCB8BB3A8B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Enyim.Caching", "Enyim.Caching\Enyim.Caching.csproj", "{0EC50FBB-03B7-4B76-9D72-AADCB8BB3A8B}"
 EndProject
-Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "DemoConsoleApp", "DemoConsoleApp\DemoConsoleApp.xproj", "{F0865E61-642F-457C-9BD4-995F3DB20F80}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SampleWebApp", "SampleWebApp\SampleWebApp.csproj", "{7F795CB9-6058-4137-B069-12C1B8D4132B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Enyim.Caching.Tests", "Enyim.Caching.Tests\Enyim.Caching.Tests.csproj", "{FAF5E655-9ED4-4934-94F9-F0EDB77143AC}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MemcachedTest", "MemcachedTest\MemcachedTest.csproj", "{3DDAC26F-8B56-4F69-8C69-A3CB6CF6B12B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{597372A2-9EE1-4A10-96FE-9D4E3AC85676}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{46CD2BBA-9846-42FA-823B-D03F68F81647}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sample", "sample", "{9954C92E-50E2-477C-AC47-31C857C46370}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,12 +27,26 @@ Global
 		{0EC50FBB-03B7-4B76-9D72-AADCB8BB3A8B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0EC50FBB-03B7-4B76-9D72-AADCB8BB3A8B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0EC50FBB-03B7-4B76-9D72-AADCB8BB3A8B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F0865E61-642F-457C-9BD4-995F3DB20F80}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F0865E61-642F-457C-9BD4-995F3DB20F80}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F0865E61-642F-457C-9BD4-995F3DB20F80}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F0865E61-642F-457C-9BD4-995F3DB20F80}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7F795CB9-6058-4137-B069-12C1B8D4132B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F795CB9-6058-4137-B069-12C1B8D4132B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F795CB9-6058-4137-B069-12C1B8D4132B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F795CB9-6058-4137-B069-12C1B8D4132B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FAF5E655-9ED4-4934-94F9-F0EDB77143AC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FAF5E655-9ED4-4934-94F9-F0EDB77143AC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FAF5E655-9ED4-4934-94F9-F0EDB77143AC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FAF5E655-9ED4-4934-94F9-F0EDB77143AC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3DDAC26F-8B56-4F69-8C69-A3CB6CF6B12B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3DDAC26F-8B56-4F69-8C69-A3CB6CF6B12B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3DDAC26F-8B56-4F69-8C69-A3CB6CF6B12B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3DDAC26F-8B56-4F69-8C69-A3CB6CF6B12B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{0EC50FBB-03B7-4B76-9D72-AADCB8BB3A8B} = {597372A2-9EE1-4A10-96FE-9D4E3AC85676}
+		{7F795CB9-6058-4137-B069-12C1B8D4132B} = {9954C92E-50E2-477C-AC47-31C857C46370}
+		{FAF5E655-9ED4-4934-94F9-F0EDB77143AC} = {46CD2BBA-9846-42FA-823B-D03F68F81647}
+		{3DDAC26F-8B56-4F69-8C69-A3CB6CF6B12B} = {46CD2BBA-9846-42FA-823B-D03F68F81647}
 	EndGlobalSection
 EndGlobal

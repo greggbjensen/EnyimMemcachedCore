@@ -106,6 +106,11 @@ namespace Enyim.Caching
             return result;
         }
 
+        public async Task<T> GetValueAsync<T>(string key)
+        {
+            return default(T);
+        }
+
         public IDictionary<string, CasResult<object>> GetWithCas(IEnumerable<string> keys)
         {
             throw new NotImplementedException();
@@ -192,6 +197,11 @@ namespace Enyim.Caching
         }
 
         public async Task<bool> StoreAsync(StoreMode mode, string key, object value, TimeSpan validFor)
+        {
+            return false;
+        }
+
+        public async Task<bool> StoreAsync(StoreMode mode, string key, object value, DateTime expiresAt)
         {
             return false;
         }
